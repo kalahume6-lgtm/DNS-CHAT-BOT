@@ -31,7 +31,6 @@ mongo = MongoClient(config.MONGO_URL)
 OWNER = config.OWNER_ID
 _boot_ = time.time()
 
-
 class DNSCHAT(Client):
     def __init__(self):
         if not config.API_ID or not config.API_HASH or not config.BOT_TOKEN:
@@ -57,7 +56,6 @@ class DNSCHAT(Client):
     async def stop(self):
         await super().stop()
 
-
 def get_readable_time(seconds: int) -> str:
     count = 0
     ping_time = ""
@@ -80,6 +78,5 @@ def get_readable_time(seconds: int) -> str:
     time_list.reverse()
     ping_time += ":".join(time_list)
     return ping_time
-
 
 DNSCHAT = DNSCHAT()

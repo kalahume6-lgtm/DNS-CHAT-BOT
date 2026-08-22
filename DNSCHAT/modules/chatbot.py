@@ -7,31 +7,31 @@ from deep_translator import GoogleTranslator
 from DNSCHAT.database.chats import add_served_chat
 from DNSCHAT.database.users import add_served_user
 from DNSCHAT import DNSCHAT, mongo, db
-from DNSCHAT.modules.helpers import CHATBOT_ON
+from DNSCHAT.modules.helpers.read import CHATBOT_ON #.read add kiya
 from pyrogram.enums import ChatMemberStatus as CMS
 from pyrogram.types import CallbackQuery, InlineKeyboardMarkup
 import asyncio
 import config
-from DNSCHAT import LOGGER, DNSCHAT
-from DNSCHAT.modules.helpers import (
+from DNSCHAT import LOGGER # DNSCHAT duplicate hata diya
+from DNSCHAT.modules.helpers.read import ( #.read add kiya
 
     ABOUT_BTN,
-    ABOUT_READ,
     ADMIN_READ,
     BACK,
     CHATBOT_BACK,
-    CHATBOT_READ,
     DEV_OP,
     HELP_BTN,
     HELP_READ,
     MUSIC_BACK_BTN,
-    SOURCE_READ,
     START,
-    TOOLS_DATA_READ,
+    get_about_read, # function import kiya
+    get_chatbot_read, # function import kiya
+    get_source_read, # function import kiya
+    get_tools_data_read, # function import kiya
 )
 
 # Simplified access to each collection in a consistent way
-chatai = db.Word.WordDb
+chatai = db.WordDb
 lang_db = db.ChatLangDb.LangCollection
 status_db = db.chatbot_status_db.status
 
@@ -187,7 +187,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
     # Show source information
     elif query.data == "SOURCE":
         await query.message.edit(
-            text=SOURCE_READ,
+            text=get_source_read(), # function call kiya
             reply_markup=InlineKeyboardMarkup(BACK),
             disable_web_page_preview=True,
         )
@@ -195,7 +195,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
     # Show about information
     elif query.data == "ABOUT":
         await query.message.edit(
-            text=ABOUT_READ,
+            text=get_about_read(), # function call kiya
             reply_markup=InlineKeyboardMarkup(ABOUT_BTN),
             disable_web_page_preview=True,
         )
@@ -210,7 +210,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
     # Show tools information
     elif query.data == "TOOLS_DATA":
         await query.message.edit(
-            text=TOOLS_DATA_READ,
+            text=get_tools_data_read(), # function call kiya
             reply_markup=InlineKeyboardMarkup(CHATBOT_BACK),
         )
 
@@ -224,7 +224,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
     # Chatbot commands
     elif query.data == "CHATBOT_CMD":
         await query.message.edit(
-            text=CHATBOT_READ,
+            text=get_chatbot_read(), # function call kiya
             reply_markup=InlineKeyboardMarkup(CHATBOT_BACK),
         )
 

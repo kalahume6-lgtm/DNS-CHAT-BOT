@@ -48,7 +48,7 @@ class DNSCHAT(Client):
     async def start(self):
         await super().start()
         self.id = self.me.id
-        self.name = self.me.first_name + " + (self.me.last_name or "")
+        self.name = self.me.first_name + " + (self.me.last_name or "") # <- Yahi fix ki
         self.username = self.me.username
         self.mention = self.me.mention
         LOGGER.info(f"Bot Started as {self.name}")

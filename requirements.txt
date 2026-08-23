@@ -5,8 +5,7 @@ motor
 dnspython
 python-dotenv
 requests
-google-generativeai
-openai
+deep_translator
 googletrans==4.0.0rc1
 pycryptodome
 apscheduler

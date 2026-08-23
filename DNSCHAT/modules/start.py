@@ -12,39 +12,15 @@ from config import OWNER_ID
 from DNSCHAT import _boot_, get_readable_time, DNSCHAT, db, LOGGER
 from DNSCHAT.database.chats import get_served_chats, add_served_chat
 from DNSCHAT.database.users import get_served_users, add_served_user
-from DNSCHAT.modules.helpers.inline import get_start_bot
-from DNSCHAT.modules.helpers.strings import (
-    START,
-    CLOSE_BTN,
-    HELP_BTN,
-    HELP_READ,
-    SOURCE_READ,
-)
+from DNSCHAT.modules.helpers.inline import get_start_bot, HELP_BTN, CLOSE_BTN
+from DNSCHAT.modules.helpers.read import START, HELP_READ, SOURCE_READ
 
 status_db = db.chatbot_status_db.status
 BOT_IMG = "https://files.catbox.moe/ugp6i0.jpg"
 
 
-def get_start_buttons():
-    buttons = []
-    if DNSCHAT.username:
-        buttons.append([
-            InlineKeyboardButton(
-                "Add me to group",
-                url=f"https://t.me/{DNSCHAT.username}?startgroup=true",
-            )
-        ])
-    buttons.append([
-        InlineKeyboardButton("Help", callback_data="HELP"),
-        InlineKeyboardButton("Close", callback_data="CLOSE"),
-    ])
-    return InlineKeyboardMarkup(buttons)
-
-
 async def bot_sys_stats():
     bot_uptime = int(time.time() - _boot_)
-    # interval=None => non-blocking, uses last cached reading instead of
-    # sleeping the whole event loop for 0.5s on every /start /ping call
     cpu = psutil.cpu_percent(interval=None)
     mem = psutil.virtual_memory().percent
     disk = psutil.disk_usage("/").percent
@@ -57,26 +33,20 @@ async def start_handler(_, m: Message):
     try:
         users = len(await get_served_users())
         chats = len(await get_served_chats())
-        UP, _, _, _ = await bot_sys_stats()
+        UP, _cpu, _ram, _disk = await bot_sys_stats()
 
-        text = (
-            f"**Hey {m.from_user.mention}!**\n\n"
-            f"{DNSCHAT.mention or 'Bot'} is alive\n\n"
-            f"Users: `{users}`\n"
-            f"Chats: `{chats}`\n"
-            f"Uptime: `{UP}`\n\n"
-            f"Commands: /help /ping /repo /stats /id"
-        )
+        # START string ke 4 placeholders: mention, users, chats, uptime
+        text = START.format(DNSCHAT.mention or "Bot", users, chats, UP)
 
         try:
             await m.reply_photo(
                 photo=BOT_IMG,
                 caption=text,
-                reply_markup=get_start_buttons(),
+                reply_markup=InlineKeyboardMarkup(get_start_bot()),
             )
         except Exception as photo_err:
             LOGGER.error(f"start photo error: {photo_err}")
-            await m.reply_text(text, reply_markup=get_start_buttons())
+            await m.reply_text(text, reply_markup=InlineKeyboardMarkup(get_start_bot()))
 
         if m.chat.type == ChatType.PRIVATE:
             await add_served_user(m.from_user.id)
@@ -121,8 +91,6 @@ async def repo_handler(_, m: Message):
 async def ping_handler(_, message: Message):
     start = datetime.now()
     msg = await message.reply_text("Pinging...")
-    # total_seconds() covers full elapsed time correctly (not just the
-    # microsecond component, which breaks across second boundaries)
     ms = (datetime.now() - start).total_seconds() * 1000
     UP, CPU, RAM, DISK = await bot_sys_stats()
     await msg.edit_text(
@@ -177,7 +145,6 @@ broadcast_lock = asyncio.Lock()
 
 
 def _parse_owner_ids(raw):
-    """Supports a single owner id or a comma-separated list in OWNER_ID."""
     if not raw:
         return [0]
     parts = str(raw).replace(" ", "").split(",")

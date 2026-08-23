@@ -1,6 +1,10 @@
 from config import OWNER_USERNAME, SUPPORT_GRP
 from pyrogram import Client, filters
 
+BOT_NAME = "YASHIKA"  
+BOT_USERNAME = "YASHIKA_CHAT_BOT"  
+
+START = f"""**..."""
 START = f"""**
 {{}} ᴛʜᴇ ꜱᴜᴘᴇʀғᴀꜱᴛ ᴄʜᴀᴛʙᴏᴛ 💞
 

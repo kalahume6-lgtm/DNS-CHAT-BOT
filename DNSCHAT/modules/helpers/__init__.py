@@ -2,11 +2,10 @@ from typing import Callable
 
 from pyrogram.enums import ChatMemberStatus
 from pyrogram.types import Message
-from pyrogram import filters
 
 from config import OWNER_ID
 
-# ---------- Admin check decorator ----------
+
 def is_admins(func: Callable) -> Callable:
     async def non_admin(c, m: Message):
         if m.from_user and m.from_user.id == OWNER_ID:
@@ -22,24 +21,7 @@ def is_admins(func: Callable) -> Callable:
     return non_admin
 
 
-# ---------- Custom on_cmd decorator (Start.py ke liye) ----------
-def on_cmd(commands: list | str):
-    """
-    Simple command decorator.
-    Usage: @DNSCHAT.on_cmd(["start", "help"])
-    """
-    if isinstance(commands, str):
-        commands = [commands]
-
-    def decorator(func):
-        # Pyrogram client par later attach hoga
-        func._commands = commands
-        return func
-
-    return decorator
-
-
-# ---------- Export everything from read & inline ----------
+# ---------- Export from read ----------
 from .read import (
     START,
     HELP_READ,
@@ -49,9 +31,9 @@ from .read import (
     get_source_read,
     get_about_read,
     SOURCE_READ,
-    CHATBOT_ON,
 )
 
+# ---------- Export from inline (CHATBOT_ON yahan se aayega) ----------
 from .inline import (
     START_BOT,
     DEV_OP,
@@ -65,11 +47,11 @@ from .inline import (
     HELP_BUTN,
     ABOUT_BTN,
     S_BACK,
+    CHATBOT_ON,
 )
 
 __all__ = [
     "is_admins",
-    "on_cmd",
     "START",
     "HELP_READ",
     "ADMIN_READ",
@@ -78,7 +60,6 @@ __all__ = [
     "get_source_read",
     "get_about_read",
     "SOURCE_READ",
-    "CHATBOT_ON",
     "START_BOT",
     "DEV_OP",
     "PNG_BTN",
@@ -91,4 +72,5 @@ __all__ = [
     "HELP_BUTN",
     "ABOUT_BTN",
     "S_BACK",
+    "CHATBOT_ON",
 ]

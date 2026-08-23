@@ -1,5 +1,4 @@
 import random
-import asyncio
 from pyrogram import Client, filters
 from pyrogram.errors import MessageEmpty
 from pyrogram.enums import ChatAction
@@ -31,18 +30,30 @@ from DNSCHAT.modules.helpers import (
     get_tools_data_read,
 )
 
-# ========== Database ==========
 chatai = db.WordDb
 lang_db = db.ChatLangDb.LangCollection
 status_db = db.chatbot_status_db.status
 
-# Commands jo chatbot ignore karega
 IGNORE_COMMANDS = [
     "start", "aistart", "help", "repo", "ping", "stats", "id",
     "broadcast", "gcast", "chatbot", "status", "lang", "language",
     "setlang", "resetlang", "nolang", "shayri", "gf", "bf",
     "sari", "shari", "love",
 ]
+
+
+def not_bot_command(_, __, message):
+    if not message or not message.text:
+        return True
+    text = message.text.strip()
+    if text.startswith("/"):
+        cmd = text[1:].split("@")[0].split()[0].lower()
+        if cmd in IGNORE_COMMANDS:
+            return False
+    return True
+
+
+command_filter = filters.create(not_bot_command)
 
 
 @DNSCHAT.on_message(filters.command("status"))
@@ -57,23 +68,39 @@ async def status_command(client: Client, message: Message):
 
 
 languages = {
-    "english": "en", "hindi": "hi", "myanmar": "my", "russian": "ru", "spanish": "es",
-    "arabic": "ar", "turkish": "tr", "german": "de", "french": "fr",
-    "italian": "it", "persian": "fa", "indonesian": "id", "portuguese": "pt",
-    "ukrainian": "uk", "filipino": "tl", "korean": "ko", "japanese": "ja",
-    "polish": "pl", "vietnamese": "vi", "thai": "th", "dutch": "nl",
-    "bhojpuri": "bho", "maithili": "mai", "urdu": "ur", "bengali": "bn",
-    "telugu": "te", "marathi": "mr", "gujarati": "gu", "kannada": "kn",
-    "malayalam": "ml", "odia": "or", "punjabi": "pa", "assamese": "as",
-    "tamil": "ta", "chinese (simplified)": "zh-CN", "chinese (traditional)": "zh-TW",
+    "english": "en",
+    "hindi": "hi",
+    "russian": "ru",
+    "spanish": "es",
+    "arabic": "ar",
+    "turkish": "tr",
+    "german": "de",
+    "french": "fr",
+    "italian": "it",
+    "persian": "fa",
+    "indonesian": "id",
+    "portuguese": "pt",
+    "korean": "ko",
+    "japanese": "ja",
+    "urdu": "ur",
+    "bengali": "bn",
+    "telugu": "te",
+    "marathi": "mr",
+    "gujarati": "gu",
+    "kannada": "kn",
+    "malayalam": "ml",
+    "punjabi": "pa",
+    "tamil": "ta",
 }
 
 
-def generate_language_buttons(languages):
+def generate_language_buttons(languages_dict):
     buttons = []
     current_row = []
-    for lang, code in languages.items():
-        current_row.append(InlineKeyboardButton(lang.capitalize(), callback_data=f"setlang_{code}"))
+    for lang, code in languages_dict.items():
+        current_row.append(
+            InlineKeyboardButton(lang.capitalize(), callback_data=f"setlang_{code}")
+        )
         if len(current_row) == 4:
             buttons.append(current_row)
             current_row = []
@@ -84,7 +111,9 @@ def generate_language_buttons(languages):
 
 async def get_chat_language(chat_id):
     chat_lang = await lang_db.find_one({"chat_id": chat_id})
-    return chat_lang["language"] if chat_lang and "language" in chat_lang else "en"
+    if chat_lang and "language" in chat_lang:
+        return chat_lang["language"]
+    return "en"
 
 
 @DNSCHAT.on_message(filters.command(["lang", "language", "setlang"]))
@@ -100,9 +129,17 @@ async def language_selection_callback(client: Client, callback_query: CallbackQu
     lang_code = callback_query.data.split("_")[1]
     chat_id = callback_query.message.chat.id
     if lang_code in languages.values():
-        await lang_db.update_one({"chat_id": chat_id}, {"$set": {"language": lang_code}}, upsert=True)
-        await callback_query.answer(f"Language set to {lang_code.title()}.", show_alert=True)
-        await callback_query.message.edit_text(f"Chat language has been set to {lang_code.title()}.")
+        await lang_db.update_one(
+            {"chat_id": chat_id},
+            {"$set": {"language": lang_code}},
+            upsert=True,
+        )
+        await callback_query.answer(
+            f"Language set to {lang_code.title()}.", show_alert=True
+        )
+        await callback_query.message.edit_text(
+            f"Chat language has been set to {lang_code.title()}."
+        )
     else:
         await callback_query.answer("Invalid language selection.", show_alert=True)
 
@@ -110,8 +147,14 @@ async def language_selection_callback(client: Client, callback_query: CallbackQu
 @DNSCHAT.on_message(filters.command(["resetlang", "nolang"]))
 async def reset_language(client: Client, message: Message):
     chat_id = message.chat.id
-    await lang_db.update_one({"chat_id": chat_id}, {"$set": {"language": "nolang"}}, upsert=True)
-    await message.reply_text("**Bot language has been reset in this chat to mix language.**")
+    await lang_db.update_one(
+        {"chat_id": chat_id},
+        {"$set": {"language": "nolang"}},
+        upsert=True,
+    )
+    await message.reply_text(
+        "**Bot language has been reset in this chat to mix language.**"
+    )
 
 
 @DNSCHAT.on_message(filters.command("chatbot"))
@@ -120,10 +163,13 @@ async def chatbot_command(client: Client, message: Message):
     existing = await status_db.find_one({"chat_id": chat_id})
     if not existing:
         await status_db.update_one(
-            {"chat_id": chat_id}, {"$set": {"status": "disabled"}}, upsert=True
+            {"chat_id": chat_id},
+            {"$set": {"status": "disabled"}},
+            upsert=True,
         )
     await message.reply_text(
-        f"Chat: {message.chat.title or 'Private'}\n**Choose an option to enable/disable the chatbot.**",
+        f"Chat: {message.chat.title or 'Private'}\n"
+        f"**Choose an option to enable/disable the chatbot.**",
         reply_markup=InlineKeyboardMarkup(CHATBOT_ON),
     )
 
@@ -186,17 +232,27 @@ async def cb_handler(client: Client, query: CallbackQuery):
         )
     elif data == "enable_chatbot":
         chat_id = query.message.chat.id
-        await status_db.update_one({"chat_id": chat_id}, {"$set": {"status": "enabled"}}, upsert=True)
-        await query.answer("Chatbot enabled ✅", show_alert=True)
+        await status_db.update_one(
+            {"chat_id": chat_id},
+            {"$set": {"status": "enabled"}},
+            upsert=True,
+        )
+        await query.answer("Chatbot enabled", show_alert=True)
         await query.edit_message_text(
-            f"Chat: {query.message.chat.title or 'Private'}\n**Chatbot has been enabled.**"
+            f"Chat: {query.message.chat.title or 'Private'}\n"
+            f"**Chatbot has been enabled.**"
         )
     elif data == "disable_chatbot":
         chat_id = query.message.chat.id
-        await status_db.update_one({"chat_id": chat_id}, {"$set": {"status": "disabled"}}, upsert=True)
+        await status_db.update_one(
+            {"chat_id": chat_id},
+            {"$set": {"status": "disabled"}},
+            upsert=True,
+        )
         await query.answer("Chatbot disabled!", show_alert=True)
         await query.edit_message_text(
-            f"Chat: {query.message.chat.title or 'Private'}\n**Chatbot has been disabled.**"
+            f"Chat: {query.message.chat.title or 'Private'}\n"
+            f"**Chatbot has been disabled.**"
         )
     elif data == "choose_lang":
         await query.answer("Choose chatbot language for this chat.", show_alert=True)
@@ -206,17 +262,12 @@ async def cb_handler(client: Client, query: CallbackQuery):
         )
 
 
-@DNSCHAT.on_message(
-    filters.incoming
-    & \~filters.command(IGNORE_COMMANDS)
-    & \~filters.service
-)
-async def chatbot_response(client: Client, message: Message):
+@DNSCHAT.on_message(filters.incoming & command_filter)
 async def chatbot_response(client: Client, message: Message):
     try:
         chat_id = message.chat.id
         chat_status = await status_db.find_one({"chat_id": chat_id})
-        is_group = message.chat.type in ("group", "supergroup")
+        is_group = str(message.chat.type) in ("group", "supergroup") or message.chat.type.name in ("GROUP", "SUPERGROUP")
 
         if chat_status:
             if chat_status.get("status") == "disabled":
@@ -265,7 +316,9 @@ async def chatbot_response(client: Client, message: Message):
                 else:
                     await message.reply_text(translated_text)
             else:
-                await message.reply_text("**I don't understand. what are you saying??**")
+                await message.reply_text(
+                    "**I don't understand. what are you saying??**"
+                )
 
         if message.reply_to_message and message.text:
             await save_reply(message.reply_to_message, message)
@@ -277,7 +330,7 @@ async def chatbot_response(client: Client, message: Message):
 
     except MessageEmpty:
         try:
-            await message.reply_text("🙄🙄")
+            await message.reply_text("...")
         except Exception:
             pass
     except Exception as e:
@@ -292,17 +345,41 @@ async def save_reply(original_message: Message, reply_message: Message):
         word = original_message.text
 
         if reply_message.sticker:
-            doc = {"word": word, "text": reply_message.sticker.file_id, "check": "sticker"}
+            doc = {
+                "word": word,
+                "text": reply_message.sticker.file_id,
+                "check": "sticker",
+            }
         elif reply_message.photo:
-            doc = {"word": word, "text": reply_message.photo.file_id, "check": "photo"}
+            doc = {
+                "word": word,
+                "text": reply_message.photo.file_id,
+                "check": "photo",
+            }
         elif reply_message.video:
-            doc = {"word": word, "text": reply_message.video.file_id, "check": "video"}
+            doc = {
+                "word": word,
+                "text": reply_message.video.file_id,
+                "check": "video",
+            }
         elif reply_message.audio:
-            doc = {"word": word, "text": reply_message.audio.file_id, "check": "audio"}
+            doc = {
+                "word": word,
+                "text": reply_message.audio.file_id,
+                "check": "audio",
+            }
         elif reply_message.animation:
-            doc = {"word": word, "text": reply_message.animation.file_id, "check": "gif"}
+            doc = {
+                "word": word,
+                "text": reply_message.animation.file_id,
+                "check": "gif",
+            }
         elif reply_message.text:
-            doc = {"word": word, "text": reply_message.text, "check": "none"}
+            doc = {
+                "word": word,
+                "text": reply_message.text,
+                "check": "none",
+            }
         else:
             return
 
@@ -318,7 +395,9 @@ async def get_reply(word: str):
         if not word:
             return None
         results = await chatai.find({"word": word}).to_list(length=50)
-        return random.choice(results) if results else None
+        if results:
+            return random.choice(results)
+        return None
     except Exception as e:
         LOGGER.error(f"Error in get_reply: {e}")
         return None

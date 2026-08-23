@@ -3,20 +3,18 @@ import logging
 import random
 import time
 import psutil
-from DNSCHAT import _boot_
-from DNSCHAT import get_readable_time
-from DNSCHAT import DNSCHAT, mongo
 from datetime import datetime
-from pymongo import MongoClient
-from pyrogram.enums import ChatType, ParseMode
+
 from pyrogram import Client, filters
-from config import OWNER_ID, MONGO_URL, OWNER_USERNAME
+from pyrogram.enums import ChatType, ParseMode
 from pyrogram.errors import FloodWait, ChatAdminRequired
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery
+
+from config import OWNER_ID, MONGO_URL, OWNER_USERNAME
+from DNSCHAT import _boot_, get_readable_time, DNSCHAT, mongo, db
 from DNSCHAT.database.chats import get_served_chats, add_served_chat
 from DNSCHAT.database.users import get_served_users, add_served_user
-from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery
 from DNSCHAT.modules.helpers import (
-
     START,
     START_BOT,
     PNG_BTN,
@@ -28,26 +26,25 @@ from DNSCHAT.modules.helpers import (
     SOURCE_READ,
 )
 
-GSTART = """**ʜᴇʏ ᴅᴇᴀʀ {}**\n\n**ᴛʜᴀɴᴋs ғᴏʀ sᴛᴀʀᴛ ᴍᴇ ɪɴ ɢʀᴏᴜᴘ ʏᴏᴜ ᴄᴀɴ ᴄʜᴀɴɢᴇ ʟᴀɴɢᴜᴀɢᴇ ʙʏ ᴄʟɪᴄᴋ ᴏɴ ɢɪᴠᴇɴ ʙᴇʟᴏᴡ ʙᴜᴛᴛᴏɴs.**\n**ᴄʟɪᴄᴋ ᴀɴᴅ sᴇʟᴇᴄᴛ ʏᴏᴜʀ ғᴀᴠᴏᴜʀɪᴛᴇ ʟᴀɴɢᴜᴀɢᴇ ᴛᴏ sᴇᴛ ᴄʜᴀᴛ ʟᴀɴɢᴜᴀɢᴇ ғᴏʀ ʙᴏᴛ ʀᴇᴘʟʏ.**\n\n**ᴛʜᴀɴᴋ ʏᴏᴜ ᴘʟᴇᴀsᴇ ᴇɴɪᴏʏ.**"""
+# ========== Standardized DB (chatbot.py ke saath same) ==========
+chatai = db.WordDb
+lang_db = db.ChatLangDb.LangCollection
+status_db = db.chatbot_status_db.status
+
+GSTART = """**ʜᴇʏ ᴅᴇᴀʀ {}**
+
+**ᴛʜᴀɴᴋs ғᴏʀ sᴛᴀʀᴛ ᴍᴇ ɪɴ ɢʀᴏᴜᴘ ʏᴏᴜ ᴄᴀɴ ᴄʜᴀɴɢᴇ ʟᴀɴɢᴜᴀɢᴇ ʙʏ ᴄʟɪᴄᴋ ᴏɴ ɢɪᴠᴇɴ ʙᴇʟᴏᴡ ʙᴜᴛᴛᴏɴs.**
+**ᴄʟɪᴄᴋ ᴀɴᴅ sᴇʟᴇᴄᴛ ʏᴏᴜʀ ғᴀᴠᴏᴜʀɪᴛᴇ ʟᴀɴɢᴜᴀɢᴇ ᴛᴏ sᴇᴛ ᴄʜᴀᴛ ʟᴀɴɢᴜᴀɢᴇ ғᴏʀ ʙᴏᴛ ʀᴇᴘʟʏ.**
+
+**ᴛʜᴀɴᴋ ʏᴏᴜ ᴘʟᴇᴀsᴇ ᴇɴᴊᴏʏ.**"""
+
 STICKER = [
     "CAACAgUAAx0CYlaJawABBy4vZaieO6T-Ayg3mD-JP-f0yxJngIkAAv0JAALVS_FWQY7kbQSaI-geBA",
     "CAACAgUAAx0CYlaJawABBy4rZaid77Tf70SV_CfjmbMgdJyVD8sAApwLAALGXCFXmCx8ZC5nlfQeBA",
     "CAACAgUAAx0CYlaJawABBy4jZaidvIXNPYnpAjNnKgzaHmh3cvoAAiwIAAIda2lVNdNI2QABHuVVHgQ",
 ]
 
-
-EMOJIOS = [
-    "💣",
-    "💥",
-    "🪄",
-    "🧨",
-    "⚡",
-    "🤡",
-    "👻",
-    "🎃",
-    "🎩",
-    "🕊",
-]
+EMOJIOS = ["💣", "💥", "🪄", "🧨", "⚡", "🤡", "👻", "🎃", "🎩", "🕊"]
 
 BOT = "https://files.catbox.moe/ugp6i0.jpg"
 IMG = [
@@ -68,23 +65,12 @@ IMG = [
 ]
 
 
-chatai = db.Word.WordDb if 'db' in dir() else None  # placeholder, replaced below
-
-from DNSCHAT import db
-
-chatai = db.Word.WordDb
-lang_db = db.ChatLangDb.LangCollection
-status_db = db.ChatBotStatusDb.StatusCollection
-
-
-
-
 async def bot_sys_stats():
     bot_uptime = int(time.time() - _boot_)
     cpu = psutil.cpu_percent(interval=0.5)
     mem = psutil.virtual_memory().percent
     disk = psutil.disk_usage("/").percent
-    UP = f"{get_readable_time((bot_uptime))}"
+    UP = f"{get_readable_time(bot_uptime)}"
     CPU = f"{cpu}%"
     RAM = f"{mem}%"
     DISK = f"{disk}%"
@@ -98,6 +84,7 @@ async def set_default_status(chat_id):
     except Exception as e:
         print(f"Error setting default status for chat {chat_id}: {e}")
 
+
 @DNSCHAT.on_message(filters.new_chat_members)
 async def welcomejej(client, message: Message):
     await add_served_chat(message.chat.id)
@@ -106,10 +93,15 @@ async def welcomejej(client, message: Message):
     chats = len(await get_served_chats())
     try:
         for member in message.new_chat_members:
-
             if member.id == DNSCHAT.id:
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(f"sᴇʟᴇᴄᴛ ʟᴀɴɢᴜᴀɢᴇ", callback_data="choose_lang")]])
-                await message.reply_photo(photo=random.choice(IMG), caption=START.format(DNSCHAT.mention or "can't mention", users, chats), reply_markup=reply_markup)
+                reply_markup = InlineKeyboardMarkup(
+                    [[InlineKeyboardButton("sᴇʟᴇᴄᴛ ʟᴀɴɢᴜᴀɢᴇ", callback_data="choose_lang")]]
+                )
+                await message.reply_photo(
+                    photo=random.choice(IMG),
+                    caption=START.format(DNSCHAT.mention or "can't mention", users, chats, "0s"),
+                    reply_markup=reply_markup,
+                )
                 chat = message.chat
                 try:
                     invitelink = await DNSCHAT.export_chat_invite_link(message.chat.id)
@@ -121,9 +113,7 @@ async def welcomejej(client, message: Message):
                     groups_photo = await DNSCHAT.download_media(
                         chat.photo.big_file_id, file_name=f"chatpp{chat.id}.png"
                     )
-                    chat_photo = (
-                        groups_photo if groups_photo else "https://files.catbox.moe/4itjd9.jpg"
-                    )
+                    chat_photo = groups_photo if groups_photo else "https://files.catbox.moe/4itjd9.jpg"
                 except AttributeError:
                     chat_photo = "https://files.catbox.moe/4itjd9.jpg"
 
@@ -141,99 +131,47 @@ async def welcomejej(client, message: Message):
                     f"**ᴛᴏᴛᴀʟ ᴄʜᴀᴛs :** {chats}"
                 )
 
-                try:
-                    owner_username = True
-
-                    if owner_username:
+                if OWNER_ID:
+                    try:
                         await DNSCHAT.send_photo(
                             int(OWNER_ID),
                             photo=chat_photo,
                             caption=msg,
                             reply_markup=InlineKeyboardMarkup(
-                                [
-                                    [
-                                        InlineKeyboardButton(
-                                            f"{message.from_user.first_name}",
-                                            user_id=message.from_user.id)]]))
-                    else:
-                        await DNSCHAT.send_photo(
-                            int(OWNER_ID),
-                            photo=chat_photo,
-                            caption=msg,
-                            reply_markup=InlineKeyboardMarkup(
-                                [
-                                    [
-                                        InlineKeyboardButton(
-                                            f"{message.from_user.first_name}",
-                                            user_id=message.from_user.id)]]))
-                except Exception as e:
-                    logging.info(f"Error fetching owner username: {e}")
-                    await DNSCHAT.send_photo(
-                        int(OWNER_ID),
-                        photo=chat_photo,
-                        caption=msg,
-                        reply_markup=InlineKeyboardMarkup(
-                            [
-                                [
-                                    InlineKeyboardButton(
-                                        f"{message.from_user.first_name}",
-                                        user_id=message.from_user.id)]]))
+                                [[InlineKeyboardButton(
+                                    f"{message.from_user.first_name}",
+                                    user_id=message.from_user.id
+                                )]]
+                            ),
+                        )
+                    except Exception as e:
+                        logging.info(f"Error sending to owner: {e}")
 
     except Exception as e:
         logging.info(f"Error: {e}")
 
 
-@DNSCHAT.on_cmd(["start", "aistart"])
+@DNSCHAT.on_message(filters.command(["start", "aistart"]))
 async def start(_, m: Message):
     users = len(await get_served_users())
     chats = len(await get_served_chats())
     if m.chat.type == ChatType.PRIVATE:
-        accha = await m.reply_text(
-            text=random.choice(EMOJIOS),
-        )
+        accha = await m.reply_text(text=random.choice(EMOJIOS))
         await asyncio.sleep(0.5)
 
-        await accha.edit("**__ᴅ__**")
-        await asyncio.sleep(0.01)
-        await accha.edit("**__ᴅι__**")
-        await asyncio.sleep(0.01)
-        await accha.edit("**__ᴅιи__**")
-        await asyncio.sleep(0.01)
-        await accha.edit("**__ᴅιиg__**")
-        await asyncio.sleep(0.01)
-        await accha.edit("**__ᴅιиg ᴅ__**")
-        await asyncio.sleep(0.01)
-        await accha.edit("**__ᴅιиg ᴅσ__**")
-        await asyncio.sleep(0.01)
-        await accha.edit("**__ᴅιиg ᴅσи__**")
-        await asyncio.sleep(0.01)
-        await accha.edit("**__ᴅιиg ᴅσиg__**")
-        await asyncio.sleep(0.01)
-        await accha.edit("**__ᴅιиg ᴅσиg ꨄ︎__**")
-        await asyncio.sleep(0.01)
-        await accha.edit("**__ᴅιиg ᴅσиg ꨄ︎ ѕ__**")
-        await asyncio.sleep(0.01)
-        await accha.edit("**__ᴅιиg ᴅσиg ꨄ sт__**")
-        await asyncio.sleep(0.01)
-        await accha.edit("**__ᴅιиg ᴅσиg ꨄ︎ ѕтα__**")
-        await asyncio.sleep(0.01)
-        await accha.edit("**__ᴅιиg ᴅσиg ꨄ︎ ѕтαя__**")
-        await asyncio.sleep(0.01)
-        await accha.edit("**__ᴅιиg ᴅσиg ꨄ sтαят__**")
-        await asyncio.sleep(0.01)
-        await accha.edit("**__ᴅιиg ᴅσиg ꨄ︎ sтαятι__**")
-        await asyncio.sleep(0.01)
-        await accha.edit("**__ᴅιиg ᴅσиg ꨄ︎ sтαятιи__**")
-        await asyncio.sleep(0.01)
-        await accha.edit("**__ᴅιиg ᴅσиg ꨄ sтαятιиg__**")
-        await asyncio.sleep(0.01)
-        await accha.edit("**__ᴅιиg ᴅσиg ꨄ︎ ѕтαятιиg.__**")
-        await asyncio.sleep(0.1)
-        await accha.edit("**__ᴅιиg ᴅσиg ꨄ sтαятιиg.....__**")
-        await asyncio.sleep(0.1)
-        await accha.edit("**__ᴅιиg ᴅσиg ꨄ︎ ѕтαятιиg.__**")
-        await asyncio.sleep(0.1)
-        await accha.edit("**__ᴅιиg ᴅσиg ꨄ sтαятιиg.....__**")
+        for text in [
+            "**__ᴅ__**", "**__ᴅι__**", "**__ᴅιи__**", "**__ᴅιиg__**",
+            "**__ᴅιиg ᴅ__**", "**__ᴅιиg ᴅσ__**", "**__ᴅιиg ᴅσи__**",
+            "**__ᴅιиg ᴅσиg__**", "**__ᴅιиg ᴅσиg ꨄ︎__**",
+            "**__ᴅιиg ᴅσиg ꨄ︎ ѕ__**", "**__ᴅιиg ᴅσиg ꨄ sт__**",
+            "**__ᴅιиg ᴅσиg ꨄ︎ ѕтα__**", "**__ᴅιиg ᴅσиg ꨄ︎ ѕтαя__**",
+            "**__ᴅιиg ᴅσиg ꨄ sтαят__**", "**__ᴅιиg ᴅσиg ꨄ︎ sтαятι__**",
+            "**__ᴅιиg ᴅσиg ꨄ︎ sтαятιи__**", "**__ᴅιиg ᴅσиg ꨄ sтαятιиg__**",
+            "**__ᴅιиg ᴅσиg ꨄ︎ ѕтαятιиg.__**", "**__ᴅιиg ᴅσиg ꨄ sтαятιиg.....__**",
+        ]:
+            await accha.edit(text)
+            await asyncio.sleep(0.01)
+
         await accha.delete()
 
         umm = await m.reply_sticker(sticker=random.choice(STICKER))
@@ -250,10 +188,32 @@ async def start(_, m: Message):
         users = len(await get_served_users())
         chats = len(await get_served_chats())
         UP, CPU, RAM, DISK = await bot_sys_stats()
-        await m.reply_photo(photo=chat_photo, caption=START.format(DNSCHAT.mention or "can't mention", users, chats, UP), reply_markup=InlineKeyboardMarkup(START_BOT))
+        await m.reply_photo(
+            photo=chat_photo,
+            caption=START.format(DNSCHAT.mention or "can't mention", users, chats, UP),
+            reply_markup=InlineKeyboardMarkup(START_BOT),
+        )
         await add_served_user(m.chat.id)
-        keyboard = InlineKeyboardMarkup([[InlineKeyboardButton(f"{m.chat.first_name}", user_id=m.chat.id)]])
-        await DNSCHAT.send_photo(int(OWNER_ID), photo=chat_photo, caption=f"{m.from_user.mention} ʜᴀs sᴛᴀʀᴛᴇᴅ ʙᴏᴛ. \n\n**ɴᴀᴍᴇ :** {m.chat.first_name}\n**ᴜsᴇʀɴᴀᴍᴇ :** @{m.chat.username}\n**ɪᴅ :** {m.chat.id}\n\n**ᴛᴏᴛᴀʟ ᴜsᴇʀs :** {users}", reply_markup=keyboard)
+
+        if OWNER_ID:
+            try:
+                keyboard = InlineKeyboardMarkup(
+                    [[InlineKeyboardButton(f"{m.chat.first_name}", user_id=m.chat.id)]]
+                )
+                await DNSCHAT.send_photo(
+                    int(OWNER_ID),
+                    photo=chat_photo,
+                    caption=(
+                        f"{m.from_user.mention} ʜᴀs sᴛᴀʀᴛᴇᴅ ʙᴏᴛ.\n\n"
+                        f"**ɴᴀᴍᴇ :** {m.chat.first_name}\n"
+                        f"**ᴜsᴇʀɴᴀᴍᴇ :** @{m.chat.username}\n"
+                        f"**ɪᴅ :** {m.chat.id}\n\n"
+                        f"**ᴛᴏᴛᴀʟ ᴜsᴇʀs :** {users}"
+                    ),
+                    reply_markup=keyboard,
+                )
+            except Exception:
+                pass
 
     else:
         await m.reply_photo(
@@ -264,15 +224,14 @@ async def start(_, m: Message):
         await add_served_chat(m.chat.id)
 
 
-@DNSCHAT.on_cmd("help")
-async def help(client: DNSCHAT, m: Message):
+@DNSCHAT.on_message(filters.command("help"))
+async def help(client: Client, m: Message):
     if m.chat.type == ChatType.PRIVATE:
-        hmm = await m.reply_photo(
+        await m.reply_photo(
             photo=random.choice(IMG),
             caption=HELP_READ,
             reply_markup=InlineKeyboardMarkup(HELP_BTN),
         )
-
     else:
         await m.reply_photo(
             photo=random.choice(IMG),
@@ -282,7 +241,7 @@ async def help(client: DNSCHAT, m: Message):
         await add_served_chat(m.chat.id)
 
 
-@DNSCHAT.on_cmd("repo")
+@DNSCHAT.on_message(filters.command("repo"))
 async def repo(_, m: Message):
     await m.reply_text(
         text=SOURCE_READ,
@@ -291,9 +250,7 @@ async def repo(_, m: Message):
     )
 
 
-
-
-@DNSCHAT.on_cmd("ping")
+@DNSCHAT.on_message(filters.command("ping"))
 async def ping(_, message: Message):
     start = datetime.now()
     UP, CPU, RAM, DISK = await bot_sys_stats()
@@ -304,7 +261,15 @@ async def ping(_, message: Message):
 
     ms = (datetime.now() - start).microseconds / 1000
     await loda.edit_text(
-        text=f"нey вαву!!\n{DNSCHAT.name} ᴄʜᴀᴛʙᴏᴛ ιѕ alιve 🥀 αnd worĸιng ғιne wιтн a pιng oғ\n\n**➥** `{ms}` ms\n**➲ ᴄᴘᴜ:** {CPU}\n**➲ ʀᴀᴍ:** {RAM}\n**➲ ᴅɪsᴋ:** {DISK}\n**➲ ᴜᴘᴛɪᴍᴇ »** {UP}\n\n<b>||**๏ мαdє ωιтн ❣️ ву [Rudra ✯ ᴏᴡɴᴇʀ](https://t.me/RU_DRA_098) **||</b>",
+        text=(
+            f"нey вαву!!\n{DNSCHAT.name} ᴄʜᴀᴛʙᴏᴛ ιѕ alιve 🥀 αnd worĸιng ғιne wιтн a pιng oғ\n\n"
+            f"**➥** `{ms}` ms\n"
+            f"**➲ ᴄᴘᴜ:** {CPU}\n"
+            f"**➲ ʀᴀᴍ:** {RAM}\n"
+            f"**➲ ᴅɪsᴋ:** {DISK}\n"
+            f"**➲ ᴜᴘᴛɪᴍᴇ »** {UP}\n\n"
+            f"<b>||**๏ мαdє ωιтн ❣️ ву [Rudra ✯ ᴏᴡɴᴇʀ](https://t.me/{OWNER_USERNAME or 'RU_DRA_098'}) **||</b>"
+        ),
         reply_markup=InlineKeyboardMarkup(PNG_BTN),
     )
     if message.chat.type == ChatType.PRIVATE:
@@ -325,7 +290,7 @@ async def stats(cli: Client, message: Message):
     )
 
 
-@DNSCHAT.on_cmd("id")
+@DNSCHAT.on_message(filters.command("id"))
 async def getid(client, message):
     chat = message.chat
     your_id = message.from_user.id
@@ -343,11 +308,10 @@ async def getid(client, message):
             split = message.text.split(None, 1)[1].strip()
             user_id = (await client.get_users(split)).id
             text += f"**[ᴜsᴇʀ ɪᴅ:](tg://user?id={user_id})** `{user_id}`\n"
-
         except Exception:
             return await message.reply_text("ᴛʜɪs ᴜsᴇʀ ᴅᴏᴇsɴ'ᴛ ᴇxɪsᴛ.", quote=True)
 
-    text += f"**[ᴄʜᴀᴛ ɪᴅ:](https://t.me/{chat.username})** `{chat.id}`\n\n"
+    text += f"**[ᴄʜᴀᴛ ɪᴅ:](https://t.me/{chat.username or ''})** `{chat.id}`\n\n"
 
     if (
         not getattr(reply, "empty", True)
@@ -359,11 +323,9 @@ async def getid(client, message):
 
     if reply and reply.forward_from_chat:
         text += f"ᴛʜᴇ ғᴏʀᴡᴀʀᴅᴇᴅ ᴄʜᴀɴɴᴇʟ, {reply.forward_from_chat.title}, ʜᴀs ᴀɴ ɪᴅ ᴏғ `{reply.forward_from_chat.id}`\n\n"
-        print(reply.forward_from_chat)
 
     if reply and reply.sender_chat:
         text += f"ɪᴅ ᴏғ ᴛʜᴇ ʀᴇᴘʟɪᴇᴅ ᴄʜᴀᴛ/ᴄʜᴀɴɴᴇʟ, ɪs `{reply.sender_chat.id}`"
-        print(reply.sender_chat)
 
     await message.reply_text(
         text,
@@ -379,13 +341,11 @@ AUTO_SLEEP = 5
 IS_BROADCASTING = False
 broadcast_lock = asyncio.Lock()
 
-# Ordered longest-flag-first so substring matches (e.g. "-pin" inside
-# "-pinloud") don't collide with each other during detection/removal.
 BROADCAST_FLAGS = ["-pinloud", "-nogroup", "-user", "-pin"]
 
 
 @DNSCHAT.on_message(
-    filters.command(["broadcast", "gcast"]) & filters.user(int(OWNER_ID))
+    filters.command(["broadcast", "gcast"]) & filters.user(int(OWNER_ID) if OWNER_ID else 0)
 )
 async def broadcast_message(client, message):
     global IS_BROADCASTING
@@ -397,131 +357,110 @@ async def broadcast_message(client, message):
 
         IS_BROADCASTING = True
         try:
-            query = message.text.split(None, 1)[1].strip()
-        except IndexError:
-            query = message.text.strip()
-        except Exception as eff:
-            return await message.reply_text(
-                f"**Error**: {eff}"
-            )
-        try:
-            if message.reply_to_message:
-                broadcast_content = message.reply_to_message
-                broadcast_type = "reply"
-                flags = {flag: flag in query for flag in BROADCAST_FLAGS}
-            else:
-                if len(message.command) < 2:
-                    return await message.reply_text(
-                        "**Please provide text after the command or reply to a message for broadcasting.**"
+            try:
+                query = message.text.split(None, 1)[1].strip()
+            except IndexError:
+                query = message.text.strip()
+            except Exception as eff:
+                return await message.reply_text(f"**Error**: {eff}")
+
+            try:
+                if message.reply_to_message:
+                    broadcast_content = message.reply_to_message
+                    broadcast_type = "reply"
+                    flags = {flag: flag in query for flag in BROADCAST_FLAGS}
+                else:
+                    if len(message.command) < 2:
+                        return await message.reply_text(
+                            "**Please provide text after the command or reply to a message for broadcasting.**"
+                        )
+
+                    flags = {flag: flag in query for flag in BROADCAST_FLAGS}
+
+                    for flag in BROADCAST_FLAGS:
+                        query = query.replace(flag, "").strip()
+
+                    if not query:
+                        return await message.reply_text(
+                            "Please provide a valid text message or a flag: -pin, -nogroup, -pinloud, -user"
+                        )
+
+                    broadcast_content = query
+                    broadcast_type = "text"
+
+                if flags.get("-pinloud", False):
+                    flags["-pin"] = False
+
+                await message.reply_text("**Started broadcasting...**")
+
+                if not flags.get("-nogroup", False):
+                    sent = 0
+                    pin_count = 0
+                    chats = await get_served_chats()
+
+                    for chat in chats:
+                        chat_id = int(chat["chat_id"])
+                        if chat_id == message.chat.id:
+                            continue
+                        try:
+                            if broadcast_type == "reply":
+                                m = (await DNSCHAT.forward_messages(
+                                    chat_id, message.chat.id, [broadcast_content.id]
+                                ))[0]
+                            else:
+                                m = await DNSCHAT.send_message(chat_id, text=broadcast_content)
+                            sent += 1
+
+                            if flags.get("-pin", False) or flags.get("-pinloud", False):
+                                try:
+                                    await m.pin(disable_notification=flags.get("-pin", False))
+                                    pin_count += 1
+                                except Exception as e:
+                                    logger.error(f"Failed to pin message in chat {chat_id}: {e}")
+
+                        except FloodWait as e:
+                            flood_time = int(e.value)
+                            logger.warning(f"FloodWait of {flood_time} seconds for chat {chat_id}.")
+                            if flood_time > 200:
+                                continue
+                            await asyncio.sleep(flood_time)
+                        except Exception as e:
+                            logger.error(f"Error broadcasting to chat {chat_id}: {e}")
+                            continue
+
+                    await message.reply_text(
+                        f"**Broadcasted to {sent} chats and pinned in {pin_count} chats.**"
                     )
 
-                flags = {flag: flag in query for flag in BROADCAST_FLAGS}
+                if flags.get("-user", False):
+                    susr = 0
+                    users = await get_served_users()
 
-                # Longest flags first so "-pinloud" is stripped whole,
-                # instead of "-pin" eating part of it and leaving "loud"
-                # behind in the broadcast text.
-                for flag in BROADCAST_FLAGS:
-                    query = query.replace(flag, "").strip()
+                    for user in users:
+                        user_id = int(user["user_id"])
+                        try:
+                            if broadcast_type == "reply":
+                                m = (await DNSCHAT.forward_messages(
+                                    user_id, message.chat.id, [broadcast_content.id]
+                                ))[0]
+                            else:
+                                m = await DNSCHAT.send_message(user_id, text=broadcast_content)
+                            susr += 1
 
-                if not query:
-                    return await message.reply_text(
-                        "Please provide a valid text message or a flag: -pin, -nogroup, -pinloud, -user"
-                    )
-
-
-                broadcast_content = query
-                broadcast_type = "text"
-
-            # "-pinloud" implies pinning too, but must never also trip the
-            # silent "-pin" path now that detection no longer collides.
-            if flags.get("-pinloud", False):
-                flags["-pin"] = False
-
-            await message.reply_text("**Started broadcasting...**")
-
-            if not flags.get("-nogroup", False):
-                sent = 0
-                pin_count = 0
-                chats = await get_served_chats()
-
-                for chat in chats:
-                    chat_id = int(chat["chat_id"])
-                    if chat_id == message.chat.id:
-                        continue
-                    try:
-                        if broadcast_type == "reply":
-                            m = (await DNSCHAT.forward_messages(
-                                chat_id, message.chat.id, [broadcast_content.id]
-                            ))[0]
-                        else:
-                            m = await DNSCHAT.send_message(
-                                chat_id, text=broadcast_content
-                            )
-                        sent += 1
-
-                        if flags.get("-pin", False) or flags.get("-pinloud", False):
-                            try:
-                                await m.pin(
-                                    disable_notification=flags.get("-pin", False)
-                                )
-                                pin_count += 1
-                            except Exception as e:
-                                logger.error(
-                                    f"Failed to pin message in chat {chat_id}: {e}"
-                                )
-
-                    except FloodWait as e:
-                        flood_time = int(e.value)
-                        logger.warning(
-                            f"FloodWait of {flood_time} seconds encountered for chat {chat_id}."
-                        )
-                        if flood_time > 200:
-                            logger.info(
-                                f"Skipping chat {chat_id} due to excessive FloodWait."
-                            )
+                        except FloodWait as e:
+                            flood_time = int(e.value)
+                            logger.warning(f"FloodWait of {flood_time} seconds for user {user_id}.")
+                            if flood_time > 200:
+                                continue
+                            await asyncio.sleep(flood_time)
+                        except Exception as e:
+                            logger.error(f"Error broadcasting to user {user_id}: {e}")
                             continue
-                        await asyncio.sleep(flood_time)
-                    except Exception as e:
-                        logger.error(f"Error broadcasting to chat {chat_id}: {e}")
-                        continue
 
-                await message.reply_text(
-                    f"**Broadcasted to {sent} chats and pinned in {pin_count} chats.**"
-                )
+                    await message.reply_text(f"**Broadcasted to {susr} users.**")
 
-            if flags.get("-user", False):
-                susr = 0
-                users = await get_served_users()
-
-                for user in users:
-                    user_id = int(user["user_id"])
-                    try:
-                        if broadcast_type == "reply":
-                            m = (await DNSCHAT.forward_messages(
-                                user_id, message.chat.id, [broadcast_content.id]
-                            ))[0]
-                        else:
-                            m = await DNSCHAT.send_message(
-                                user_id, text=broadcast_content
-                            )
-                        susr += 1
-
-                    except FloodWait as e:
-                        flood_time = int(e.value)
-                        logger.warning(
-                            f"FloodWait of {flood_time} seconds encountered for user {user_id}."
-                        )
-                        if flood_time > 200:
-                            logger.info(
-                                f"Skipping user {user_id} due to excessive FloodWait."
-                            )
-                            continue
-                        await asyncio.sleep(flood_time)
-                    except Exception as e:
-                        logger.error(f"Error broadcasting to user {user_id}: {e}")
-                        continue
-
-                await message.reply_text(f"**Broadcasted to {susr} users.**")
-
-        finally:
+            finally:
+                IS_BROADCASTING = False
+        except Exception:
             IS_BROADCASTING = False
+            raise

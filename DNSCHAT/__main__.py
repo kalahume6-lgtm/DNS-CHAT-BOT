@@ -2,63 +2,71 @@ import sys
 import asyncio
 import importlib
 import os
-from flask import Flask
 import threading
-from pyrogram import idle
-from pyrogram.types import BotCommand
+from flask import Flask
+from pyrogram import idle, filters
+from pyrogram.types import BotCommand, Message
 from pyrogram.errors import FloodWait
+
 from config import OWNER_ID
 from DNSCHAT import LOGGER, DNSCHAT
 from DNSCHAT.modules import ALL_MODULES
 
 
 async def anony_boot():
-    max_retries = 3
-    for attempt in range(max_retries):
+    # 1) Pehle saare modules load karo (handlers register honge)
+    for all_module in ALL_MODULES:
         try:
-            await DNSCHAT.start()
-            break
-        except FloodWait as e:
-            wait_time = int(e.value)
-            LOGGER.error(
-                f"FloodWait received. Sleeping {wait_time} seconds "
-                f"(attempt {attempt + 1}/{max_retries})..."
-            )
-            # Sleep in chunks so process stays alive
-            remaining = wait_time + 10
-            while remaining > 0:
-                sleep_for = min(60, remaining)
-                await asyncio.sleep(sleep_for)
-                remaining -= sleep_for
-                LOGGER.info(f"FloodWait: {remaining} seconds left...")
-        except Exception as ex:
-            LOGGER.error(f"Start failed: {ex}")
-            if attempt == max_retries - 1:
-                sys.exit(1)
-            await asyncio.sleep(30)
-    else:
-        LOGGER.error("Could not start bot after retries")
+            importlib.import_module("DNSCHAT.modules." + all_module)
+            LOGGER.info(f"Successfully imported : {all_module}")
+        except Exception as e:
+            LOGGER.error(f"Failed to import {all_module}: {e}")
+
+    # 2) Test handler - seedha main me (debug ke liye)
+    @DNSCHAT.on_message(filters.command("test"))
+    async def test_cmd(client, message: Message):
+        await message.reply_text("Test OK - bot is receiving messages!")
+
+    @DNSCHAT.on_message(filters.text & filters.private & filters.command("start"))
+    async def force_start(client, message: Message):
+        await message.reply_text(
+            f"Hello {message.from_user.mention}!\n"
+            f"Bot is working.\n"
+            f"Try /test /ping /help /repo"
+        )
+
+    # 3) Ab bot start karo
+    try:
+        await DNSCHAT.start()
+    except FloodWait as e:
+        wait_time = int(e.value)
+        LOGGER.error(f"FloodWait: sleeping {wait_time} seconds...")
+        remaining = wait_time + 10
+        while remaining > 0:
+            sleep_for = min(60, remaining)
+            await asyncio.sleep(sleep_for)
+            remaining -= sleep_for
+            LOGGER.info(f"FloodWait: {remaining} seconds left...")
+        await DNSCHAT.start()
+    except Exception as ex:
+        LOGGER.error(f"Start failed: {ex}")
         sys.exit(1)
 
-    for all_module in ALL_MODULES:
-        importlib.import_module("DNSCHAT.modules." + all_module)
-        LOGGER.info(f"Successfully imported : {all_module}")
+    LOGGER.info(f"Bot Started as {DNSCHAT.name}")
 
     try:
         await DNSCHAT.set_bot_commands(
             commands=[
                 BotCommand("start", "Start the bot"),
-                BotCommand("help", "Get the help menu"),
-                BotCommand("ping", "Check if the bot is alive or dead"),
-                BotCommand("lang", "Select bot reply language"),
-                BotCommand("resetlang", "Reset to default bot reply lang"),
-                BotCommand("id", "Get users user_id"),
-                BotCommand("stats", "Check bot stats"),
-                BotCommand("gcast", "Broadcast any message to groups/users"),
-                BotCommand("chatbot", "Enable or disable chatbot"),
-                BotCommand("status", "Check chatbot enable or disable in chat"),
-                BotCommand("shayri", "Get random shayri for love"),
-                BotCommand("repo", "Get chatbot source code"),
+                BotCommand("help", "Help menu"),
+                BotCommand("ping", "Ping"),
+                BotCommand("test", "Test reply"),
+                BotCommand("repo", "Source code"),
+                BotCommand("stats", "Stats"),
+                BotCommand("id", "Get IDs"),
+                BotCommand("chatbot", "Enable/disable chatbot"),
+                BotCommand("lang", "Language"),
+                BotCommand("shayri", "Random shayri"),
             ]
         )
         LOGGER.info("Bot commands set successfully.")
@@ -69,11 +77,12 @@ async def anony_boot():
 
     if OWNER_ID:
         try:
-            await DNSCHAT.send_message(OWNER_ID, f"{DNSCHAT.mention} has started")
-        except Exception:
-            LOGGER.info(f"@{DNSCHAT.username} Started, please start the bot from owner id.")
-    else:
-        LOGGER.warning("OWNER_ID not set. Skipping start notification.")
+            await DNSCHAT.send_message(
+                int(OWNER_ID),
+                f"{DNSCHAT.mention} has started\nSend /test to check replies",
+            )
+        except Exception as e:
+            LOGGER.info(f"Could not notify owner: {e}")
 
     await idle()
 

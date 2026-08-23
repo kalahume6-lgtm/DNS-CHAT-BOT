@@ -14,6 +14,7 @@ from DNSCHAT import _boot_, get_readable_time, DNSCHAT, db, LOGGER
 from DNSCHAT.database.chats import get_served_chats, add_served_chat
 from DNSCHAT.database.users import get_served_users, add_served_user
 from DNSCHAT.modules.helpers.inline import get_start_bot
+from DNSCHAT.modules.helpers.read import (
     START,
     CLOSE_BTN,
     HELP_BTN,
@@ -23,7 +24,6 @@ from DNSCHAT.modules.helpers.inline import get_start_bot
 
 status_db = db.chatbot_status_db.status
 BOT_IMG = "https://files.catbox.moe/ugp6i0.jpg"
-
 
 def get_start_buttons():
     buttons = []
@@ -40,7 +40,6 @@ def get_start_buttons():
     ])
     return InlineKeyboardMarkup(buttons)
 
-
 async def bot_sys_stats():
     bot_uptime = int(time.time() - _boot_)
     cpu = psutil.cpu_percent(interval=0.5)
@@ -48,7 +47,6 @@ async def bot_sys_stats():
     disk = psutil.disk_usage("/").percent
     UP = get_readable_time(bot_uptime)
     return UP, f"{cpu}%", f"{mem}%", f"{disk}%"
-
 
 @DNSCHAT.on_message(filters.command(["start", "aistart"]))
 async def start_handler(_, m: Message):
@@ -59,7 +57,7 @@ async def start_handler(_, m: Message):
 
         text = (
             f"**Hey {m.from_user.mention}!**\n\n"
-            f"{DNSCHAT.mention or 'Bot'} is alive\n\n"
+            f"{DNSCHAT.mention or 'Bot'} is alive\n"
             f"Users: `{users}`\n"
             f"Chats: `{chats}`\n"
             f"Uptime: `{UP}`\n\n"
@@ -84,7 +82,6 @@ async def start_handler(_, m: Message):
         LOGGER.error(f"start error: {e}")
         await m.reply_text(f"Bot alive. Error: `{e}`")
 
-
 @DNSCHAT.on_message(filters.command("help"))
 async def help_handler(_, m: Message):
     try:
@@ -95,7 +92,6 @@ async def help_handler(_, m: Message):
         )
     except Exception as e:
         await m.reply_text(f"Help error: `{e}`")
-
 
 @DNSCHAT.on_message(filters.command("repo"))
 async def repo_handler(_, m: Message):
@@ -111,7 +107,6 @@ async def repo_handler(_, m: Message):
             f"Error: `{e}`"
         )
 
-
 @DNSCHAT.on_message(filters.command("ping"))
 async def ping_handler(_, message: Message):
     start = datetime.now()
@@ -124,7 +119,6 @@ async def ping_handler(_, message: Message):
         f"DISK: {DISK} | UP: {UP}"
     )
 
-
 @DNSCHAT.on_message(filters.command("stats"))
 async def stats_handler(cli: Client, message: Message):
     users = len(await get_served_users())
@@ -135,7 +129,6 @@ async def stats_handler(cli: Client, message: Message):
         f"Chats: `{chats}`\n"
         f"Users: `{users}`"
     )
-
 
 @DNSCHAT.on_message(filters.command("id"))
 async def id_handler(_, message: Message):
@@ -150,7 +143,6 @@ async def id_handler(_, message: Message):
         )
     await message.reply_text(text)
 
-
 @DNSCHAT.on_message(filters.new_chat_members)
 async def welcome_handler(client, message: Message):
     await add_served_chat(message.chat.id)
@@ -164,14 +156,12 @@ async def welcome_handler(client, message: Message):
     except Exception as e:
         LOGGER.error(f"welcome error: {e}")
 
-
 IS_BROADCASTING = False
 broadcast_lock = asyncio.Lock()
 
-
 @DNSCHAT.on_message(
     filters.command(["broadcast", "gcast"])
-    & filters.user(int(OWNER_ID) if OWNER_ID else 0)
+    & filters.user(int(OWNER_ID) if OWNER_ID else 0) # <- yaha ) add kiya
 )
 async def broadcast_handler(client, message):
     global IS_BROADCASTING

@@ -18,7 +18,4 @@ def is_admins(func: Callable) -> Callable:
         except:
             pass
 
-    return non_admin
-
-     from .inline import *
-     from .read import *
+    return non_admin 

@@ -212,6 +212,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
     & \~filters.service
 )
 async def chatbot_response(client: Client, message: Message):
+async def chatbot_response(client: Client, message: Message):
     try:
         chat_id = message.chat.id
         chat_status = await status_db.find_one({"chat_id": chat_id})

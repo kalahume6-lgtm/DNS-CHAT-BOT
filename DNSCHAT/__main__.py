@@ -6,16 +6,38 @@ from flask import Flask
 import threading
 from pyrogram import idle
 from pyrogram.types import BotCommand
+from pyrogram.errors import FloodWait
 from config import OWNER_ID
 from DNSCHAT import LOGGER, DNSCHAT
 from DNSCHAT.modules import ALL_MODULES
 
 
 async def anony_boot():
-    try:
-        await DNSCHAT.start()
-    except Exception as ex:
-        LOGGER.error(ex)
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            await DNSCHAT.start()
+            break
+        except FloodWait as e:
+            wait_time = int(e.value)
+            LOGGER.error(
+                f"FloodWait received. Sleeping {wait_time} seconds "
+                f"(attempt {attempt + 1}/{max_retries})..."
+            )
+            # Sleep in chunks so process stays alive
+            remaining = wait_time + 10
+            while remaining > 0:
+                sleep_for = min(60, remaining)
+                await asyncio.sleep(sleep_for)
+                remaining -= sleep_for
+                LOGGER.info(f"FloodWait: {remaining} seconds left...")
+        except Exception as ex:
+            LOGGER.error(f"Start failed: {ex}")
+            if attempt == max_retries - 1:
+                sys.exit(1)
+            await asyncio.sleep(30)
+    else:
+        LOGGER.error("Could not start bot after retries")
         sys.exit(1)
 
     for all_module in ALL_MODULES:
@@ -56,7 +78,6 @@ async def anony_boot():
     await idle()
 
 
-# Flask Health Check (Render needs PORT from env)
 app = Flask(__name__)
 
 
@@ -80,6 +101,5 @@ if __name__ == "__main__":
     flask_thread.start()
     LOGGER.info(f"Health check server started on port {os.environ.get('PORT', 10000)}")
 
-    # YE LINE CHANGE KI HAI BAS
-    asyncio.run(anony_boot()) 
+    asyncio.run(anony_boot())
     LOGGER.info("Stopping DNSCHAT Bot...")

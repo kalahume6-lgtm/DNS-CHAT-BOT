@@ -1,1 +1,1 @@
-worker: python3 -m DNSCHAT
+python3 -m DNSCHAT

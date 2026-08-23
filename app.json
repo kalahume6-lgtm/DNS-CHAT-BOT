@@ -9,7 +9,7 @@
     "pyrogram",
     "ai"
   ],
-  "repository": "https://github.com/hetuchutiya034-sketch/DNS-CHAT-BOT",
+  "repository": "https://github.com/kalahume6-lgtm/DNS-CHAT-BOT",
   "stack": "container",
   "env": {
     "API_ID": {

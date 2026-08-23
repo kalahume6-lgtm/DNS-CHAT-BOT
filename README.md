@@ -13,7 +13,7 @@
 </h3>
 
 <p align="center">
-  <a href="https://dashboard.heroku.com/new?template=https://github.com/hetuchutiya034-sketch/DNS-CHAT-BOT">
+  <a href="https://dashboard.heroku.com/new?template=https://github.com/kalahume6-lgtm/DNS-CHAT-BOT">
     <img src="https://img.shields.io/badge/Deploy%20On%20Heroku-green?style=for-the-badge&logo=heroku" width="320" height="138.45"/>
   </a>
 </p>
@@ -37,7 +37,7 @@
 </h3>
 
 <p align="center">
-  <a href="https://app.koyeb.com/deploy?name=dns-chat-bot&type=git&repository=hetuchutiya034-sketch/DNS-CHAT-BOT&branch=main&builder=dockerfile&env[API_ID]=&env[API_HASH]=&env[BOT_TOKEN]=&env[MONGO_URL]=&env[OWNER_ID]=&ports=8000;http;/">
+  <a href="https://app.koyeb.com/deploy?name=dns-chat-bot&type=git&repository=kalahume6-lgtm/DNS-CHAT-BOT&branch=main&builder=dockerfile&env[API_ID]=&env[API_HASH]=&env[BOT_TOKEN]=&env[MONGO_URL]=&env[OWNER_ID]=&ports=8000;http;/">
     <img src="https://www.koyeb.com/static/images/deploy/button.svg" alt="Deploy to Koyeb"/>
   </a>
 </p>
@@ -47,7 +47,7 @@
 </h3>
 
 <p align="center">
-  <a href="https://railway.app/new/template?template=https://github.com/hetuchutiya034-sketch/DNS-CHAT-BOT">
+  <a href="https://railway.app/new/template?template=https://github.com/kalahume6-lgtm/DNS-CHAT-BOT">
     <img src="https://img.shields.io/badge/Deploy%20on%20Railway-0B0D0E?style=for-the-badge&logo=railway&logoColor=white" width="250"/>
   </a>
 </p>

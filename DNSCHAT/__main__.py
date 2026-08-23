@@ -4,7 +4,7 @@ import importlib
 import os
 import threading
 from flask import Flask
-from pyrogram import idle, filters, raw
+from pyrogram import idle, filters
 from pyrogram.types import BotCommand, Message
 from pyrogram.errors import FloodWait
 
@@ -14,15 +14,7 @@ from DNSCHAT.modules import ALL_MODULES
 
 
 async def anony_boot():
-    # Modules pehle load
-    for all_module in ALL_MODULES:
-        try:
-            importlib.import_module("DNSCHAT.modules." + all_module)
-            LOGGER.info(f"Successfully imported : {all_module}")
-        except Exception as e:
-            LOGGER.error(f"Failed to import {all_module}: {e}")
-
-    # Start bot
+    # 1) PEHLE bot start karo (username set hoga)
     try:
         await DNSCHAT.start()
     except FloodWait as e:
@@ -35,31 +27,20 @@ async def anony_boot():
         sys.exit(1)
 
     LOGGER.info(f"Bot Started as {DNSCHAT.name}")
+    LOGGER.info(f"Username: @{DNSCHAT.username}")
 
-    # IMPORTANT: purana webhook hatao taaki polling chale
-    try:
-        await DNSCHAT.invoke(
-            raw.functions.bots.DeleteWebhook(drop_pending_updates=True)
-        )
-        LOGGER.info("Webhook deleted (if any). Polling active.")
-    except Exception as e:
-        LOGGER.info(f"delete_webhook info: {e}")
+    # 2) AB modules load karo (handlers register)
+    for all_module in ALL_MODULES:
+        try:
+            importlib.import_module("DNSCHAT.modules." + all_module)
+            LOGGER.info(f"Successfully imported : {all_module}")
+        except Exception as e:
+            LOGGER.error(f"Failed to import {all_module}: {e}")
 
-    # Catch-all: koi bhi message aaye to log + /test reply
-    @DNSCHAT.on_message()
-    async def debug_all(client, message: Message):
-        text = message.text or message.caption or ""
-        uid = message.from_user.id if message.from_user else "unknown"
-        LOGGER.info(f"GOT UPDATE from {uid}: {text[:80]}")
-
-        if text.startswith("/test"):
-            await message.reply_text("Test OK - bot is receiving your messages!")
-        elif text.startswith("/start"):
-            await message.reply_text(
-                f"Hello {message.from_user.mention}!\n"
-                f"Bot is working.\n"
-                f"Try /test /help /ping /repo"
-            )
+    # 3) Extra test handler
+    @DNSCHAT.on_message(filters.command("test"))
+    async def test_cmd(client, message: Message):
+        await message.reply_text("Test OK - bot is receiving messages!")
 
     try:
         await DNSCHAT.set_bot_commands(
@@ -86,7 +67,7 @@ async def anony_boot():
         try:
             await DNSCHAT.send_message(
                 int(OWNER_ID),
-                f"{DNSCHAT.mention} started.\nSend /test now",
+                f"{DNSCHAT.mention} started.\nSend /test or /start",
             )
         except Exception as e:
             LOGGER.info(f"Owner notify failed: {e}")
